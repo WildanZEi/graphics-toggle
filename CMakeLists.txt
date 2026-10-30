@@ -52,20 +52,18 @@ FetchContent_MakeAvailable(
 # --- 3. Definisikan target mod kita ---
 add_library(graphics_toggle SHARED src/main.cpp)
 
+# Tambahkan include directory untuk boost_pfr secara eksplisit
+FetchContent_GetProperties(boost_pfr)
+target_include_directories(graphics_toggle PRIVATE "${boost_pfr_SOURCE_DIR}/include")
+
 # --- 4. Link library ---
 target_link_libraries(graphics_toggle PRIVATE
   preloader
   fmt::fmt
   nlohmann_json::nlohmann_json
   magic_enum::magic_enum
+  boost_pfr
   EGL
   dl
   log
-)
-
-# --- 5. Tambahkan opsi linker untuk plugin Android ---
-# Memungkinkan .so kita memiliki simbol yang belum terdefinisi
-# yang nanti akan diselesaikan oleh LeviLauncher saat runtime.
-target_link_options(graphics_toggle PRIVATE
-  "-Wl,-undefined,dynamic_lookup"
 )
