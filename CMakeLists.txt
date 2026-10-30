@@ -8,12 +8,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 include(FetchContent)
 
-# --- 1. Ambil preloader SDK ---
+# --- 1. Ambil preloader SDK (Tanpa SOURCE_SUBDIR) ---
 FetchContent_Declare(
   preloader_android
   GIT_REPOSITORY https://github.com/LiteLDev/preloader-android.git
   GIT_TAG 0.2.2
-  SOURCE_SUBDIR cmake/preloader-sdk
 )
 
 # --- 2. Dependensi pendukung ---
@@ -50,19 +49,10 @@ FetchContent_MakeAvailable(
   fmt
 )
 
-# --- 3. Ambil path include preloader secara manual ---
-FetchContent_GetProperties(preloader_android)
-set(PRELOADER_INCLUDE_DIR "${preloader_android_SOURCE_DIR}/include")
-
-# --- 4. Definisikan target mod ---
+# --- 3. Definisikan target mod kita ---
 add_library(graphics_toggle SHARED src/main.cpp)
 
-# Tambahkan folder include secara eksplisit (INI KUNCI PERBAIKANNYA)
-target_include_directories(graphics_toggle PRIVATE
-  "${PRELOADER_INCLUDE_DIR}"
-)
-
-# Link library
+# --- 4. Link library ---
 target_link_libraries(graphics_toggle PRIVATE
   preloader
   fmt::fmt
@@ -71,4 +61,11 @@ target_link_libraries(graphics_toggle PRIVATE
   EGL
   dl
   log
+)
+
+# --- 5. Tambahkan opsi linker untuk plugin Android ---
+# Memungkinkan .so kita memiliki simbol yang belum terdefinisi
+# yang nanti akan diselesaikan oleh LeviLauncher saat runtime.
+target_link_options(graphics_toggle PRIVATE
+  "-Wl,-undefined,dynamic_lookup"
 )
