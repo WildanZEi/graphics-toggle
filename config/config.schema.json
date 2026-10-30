@@ -1,0 +1,10 @@
+{
+  "type": "object",
+  "properties": {
+    "graphics_enabled": {
+      "type": "boolean",
+      "default": true,
+      "description": "Aktifkan atau nonaktifkan presentasi grafis"
+    }
+  }
+}
