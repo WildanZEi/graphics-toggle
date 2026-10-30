@@ -1,0 +1,10 @@
+{
+  "type": "preload-native",
+  "name": "Graphics Toggle",
+  "author": "Kamu",
+  "version": "1.0.0",
+  "entry": "libgraphics_toggle.so",
+  "minecraft_versions": ["1.26.52.3"],
+  "overwrite_files": [],
+  "overwrite_folders": []
+}
