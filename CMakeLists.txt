@@ -65,6 +65,9 @@ target_include_directories(graphics_toggle PRIVATE
 # Link library
 target_link_libraries(graphics_toggle PRIVATE
   preloader
+  fmt::fmt
+  nlohmann_json::nlohmann_json
+  magic_enum::magic_enum
   EGL
   dl
   log
