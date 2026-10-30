@@ -2,15 +2,20 @@
 #include <pl/ModMenu.hpp>
 #include <pl/memory/Hook.hpp>
 #include <pl/Logger.hpp>
+#include <pl/Config.hpp>
 
 #include <EGL/egl.h>
 #include <dlfcn.h>
-#include <atomic>
 #include <filesystem>
 #include <vector>
+#include <optional>
+#include <string>
 
-// Flag global yang dibaca oleh hook
-static std::atomic_bool g_graphicsEnabled{true};
+// Struktur konfigurasi harus sama dengan config/config.json
+struct ToggleConfig {
+  int version = 1;
+  bool graphics_enabled = true;
+};
 
 // Pointer ke fungsi asli
 static EGLBoolean (*real_eglSwapBuffers)(EGLDisplay, EGLSurface) = nullptr;
@@ -33,6 +38,13 @@ public:
   bool load() {
     auto &self = getSelf();
     self.getLogger().info("Graphics Toggle loading...");
+
+    // Load config
+    mConfig.emplace();
+    if (!mConfig->load()) {
+      self.getLogger().error("Gagal load config");
+      return false;
+    }
 
     // Resolve simbol EGL
     real_eglSwapBuffers = reinterpret_cast<EGLBoolean (*)(EGLDisplay, EGLSurface)>(
@@ -77,31 +89,24 @@ public:
   }
 
   bool enable() {
-  auto &self = getSelf();
+    auto &self = getSelf();
+    
+    // PENTING: Simpan ID di string lokal agar umurnya tetap hidup selama registerModule
+    std::string modId(self.getId());
 
-  // Daftarkan modul Mod Menu dengan satu toggle
-  return pl::modmenu::ModuleBuilder("graphics_toggle.main",
-                                    "Graphics Toggle")
-      .modId(self.getId())
-      .description("Membekukan presentasi grafis tanpa menghentikan logika game.")
-      .defaultEnabled(true)
-      .config("graphics_enabled", "Graphics Enabled",
-              pl::modmenu::ConfigType::Toggle, "true")
-      .onConfigChanged([this](std::string_view key, std::string_view oldValue, std::string_view newValue) {
-        if (key == "graphics_enabled") {
-          // newValue adalah nilai terbaru setelah di-toggle
-          bool enabled = (newValue == "true" || newValue == "1");
-          g_graphicsEnabled.store(enabled, std::memory_order_relaxed);
-          getSelf().getLogger().info("Graphics enabled = {}", enabled);
-        }
-      })
-      .registerModule();
+    // Daftarkan modul Mod Menu (Tanpa onConfigChanged untuk mencegah crash)
+    return pl::modmenu::ModuleBuilder("graphics_toggle.main",
+                                      "Graphics Toggle")
+        .modId(modId)
+        .description("Membekukan presentasi grafis tanpa menghentikan logika game.")
+        .defaultEnabled(mConfig->value().graphics_enabled)
+        .config("graphics_enabled", "Graphics Enabled",
+                pl::modmenu::ConfigType::Toggle, "true", "false", "true")
+        .registerModule();
   }
 
   bool disable() {
-    // Lepas hook
     g_hooks.clear(); // RAII, otomatis unhook
-    // Unregister modul
     pl::modmenu::unregisterModule("graphics_toggle.main");
     return true;
   }
@@ -111,11 +116,17 @@ public:
     return true;
   }
 
+  // Fungsi untuk membaca config secara langsung di dalam hook
+  bool isGraphicsEnabled() const {
+    return mConfig && mConfig->value().graphics_enabled;
+  }
+
 private:
   ll::mod::NativeMod &mSelf;
+  std::optional<pl::config::ConfigFile<ToggleConfig>> mConfig;
 
   static EGLBoolean detour_eglSwapBuffers(EGLDisplay dpy, EGLSurface surf) {
-    if (!g_graphicsEnabled.load(std::memory_order_relaxed)) {
+    if (!instance().isGraphicsEnabled()) {
       // Lewati presentasi frame: layar beku, game tetap jalan
       return EGL_TRUE;
     }
@@ -124,7 +135,7 @@ private:
 
   static EGLBoolean detour_eglSwapBuffersWithDamageKHR(
       EGLDisplay dpy, EGLSurface surf, const EGLint *rects, EGLint n_rects) {
-    if (!g_graphicsEnabled.load(std::memory_order_relaxed)) {
+    if (!instance().isGraphicsEnabled()) {
       return EGL_TRUE;
     }
     return real_eglSwapBuffersWithDamageKHR(dpy, surf, rects, n_rects);
