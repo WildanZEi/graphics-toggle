@@ -77,24 +77,25 @@ public:
   }
 
   bool enable() {
-    auto &self = getSelf();
+  auto &self = getSelf();
 
-    // Daftarkan modul Mod Menu dengan satu toggle
-    return pl::modmenu::ModuleBuilder("graphics_toggle.main",
-                                      "Graphics Toggle")
-        .modId(self.getId())
-        .description("Membekukan presentasi grafis tanpa menghentikan logika game.")
-        .defaultEnabled(true)
-        .config("graphics_enabled", "Graphics Enabled",
-                pl::modmenu::ConfigType::Toggle, "true")
-        .onConfigChanged([this](std::string_view key, std::string_view value) {
-          if (key == "graphics_enabled") {
-            bool enabled = (value == "true" || value == "1");
-            g_graphicsEnabled.store(enabled, std::memory_order_relaxed);
-            getSelf().getLogger().info("Graphics enabled = {}", enabled);
-          }
-        })
-        .registerModule();
+  // Daftarkan modul Mod Menu dengan satu toggle
+  return pl::modmenu::ModuleBuilder("graphics_toggle.main",
+                                    "Graphics Toggle")
+      .modId(self.getId())
+      .description("Membekukan presentasi grafis tanpa menghentikan logika game.")
+      .defaultEnabled(true)
+      .config("graphics_enabled", "Graphics Enabled",
+              pl::modmenu::ConfigType::Toggle, "true")
+      .onConfigChanged([this](std::string_view key, std::string_view oldValue, std::string_view newValue) {
+        if (key == "graphics_enabled") {
+          // newValue adalah nilai terbaru setelah di-toggle
+          bool enabled = (newValue == "true" || newValue == "1");
+          g_graphicsEnabled.store(enabled, std::memory_order_relaxed);
+          getSelf().getLogger().info("Graphics enabled = {}", enabled);
+        }
+      })
+      .registerModule();
   }
 
   bool disable() {
